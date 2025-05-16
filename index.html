@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kripto Uygulaması</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jsencrypt/bin/jsencrypt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+    <style>
+        #publicKey,
+        #privateKey,
+        #privateKeyInput,
+        #publicKeyInput {
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            height: 200px;
+            overflow-y: auto;
+        }
+
+        #publicKey:focus,
+        #privateKey:focus,
+        #privateKeyInput:focus,
+        #publicKeyInput:focus,
+        #encryptedText:focus,
+        #shaOutput:focus {
+            border-color: #ddd;
+        }
+
+        textarea,
+        input {
+            resize: none;
+        }
+
+        #container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            height: 100vh;
+        }
+
+        #leftPanel {
+            flex: 1;
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            background: #fafafa;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #rightPanel {
+            flex: 2;
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            background: #fff;
+            overflow-y: auto;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        textarea {
+            min-height: 150px;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .copy-container {
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: -15px;
+            right: -15px;
+            padding: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            user-select: none;
+        }
+
+        .copied-text {
+            display: none;
+            position: absolute;
+            top: -20px;
+            right: 0;
+            font-size: 12px;
+            color: blue;
+            font-weight: bold;
+            user-select: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <!-- Sol Panel - Key Generator -->
+        <div id="leftPanel">
+            <h2 class="mb-4">Key Generator</h2>
+            <label for="publicKeyInput mb-1"><strong>Public Key:</strong></label>
+            <div class="copy-container mb-3">
+                <textarea id="publicKeyInput" class="form-control shadow-none" readonly
+                    placeholder="Genel anahtar burada görünecek"></textarea>
+                <button class="copy-btn" onclick="copyToClipboard('publicKeyInput', this)">📋
+                    <span class="copied-text">Kopyalandı</span>
+                </button>
+            </div>
+
+            <label for="privateKeyInput mb-1"><strong>Private Key:</strong></label>
+            <div class="copy-container mb-3">
+                <textarea id="privateKeyInput" class="form-control shadow-none" readonly
+                    placeholder="Özel anahtar burada görünecek"></textarea>
+                <button class="copy-btn" onclick="copyToClipboard('privateKeyInput', this)">📋
+                    <span class="copied-text">Kopyalandı</span>
+                </button>
+            </div>
+
+            <button class="btn btn-primary mt-auto" onclick="generateKeys()">Generate Keys</button>
+        </div>
+
+        <!-- Sağ Panel -->
+        <div id="rightPanel">
+            <div class="tab-buttons d-flex flex-wrap gap-3 mb-4">
+                <button class="btn btn-outline-primary" onclick="showSection('encrypt')"><i
+                        class="fa-solid fa-lock"></i>
+                    RSA Encryption</button>
+                <button class="btn btn-outline-primary" onclick="showSection('decrypt')"><i
+                        class="fa-solid fa-lock-open"></i> RSA Decryption</button>
+                <button class="btn btn-outline-primary" onclick="showSection('sha256')"><i class="fa fa-shield"></i>
+                    SHA256</button>
+            </div>
+
+            <!-- RSA Encryption -->
+            <div id="encrypt" class="section active">
+                <h3>RSA Encryption</h3>
+
+                <label class="mb-1"><strong>Şifrelenecek metin:</strong></label>
+                <textarea id="encryptText" class="form-control mb-2" rows="3"
+                    placeholder="Şifrelenecek metni girin"></textarea>
+
+                <label class="mb-1"><strong>Public Key:</strong></label>
+                <textarea id="encryptPublicKey" class="form-control mb-2" rows="4"
+                    placeholder="Özel anahtarı buraya yapıştırın"></textarea>
+
+                <button class="btn btn-primary mb-2 d-block" onclick="encryptText()">Şifrele</button>
+
+                <label class="mb-1"><strong>Şifrelenmiş metin:</strong></label>
+                <div class="copy-container mb-3">
+                    <textarea id="encryptedText" class="form-control shadow-none" rows="4" readonly></textarea>
+                    <button class="copy-btn" onclick="copyToClipboard('encryptedText', this)">📋
+                        <span class="copied-text">Kopyalandı</span>
+                    </button>
+                </div>
+            </div>
+
+
+            <!-- RSA Decryption -->
+            <div id="decrypt" class="section">
+                <h3>RSA Decryption</h3>
+
+                <label class="mb-1"><strong>Şifrelenmiş metin:</strong></label>
+                <textarea id="decryptText" class="form-control mb-2" rows="4"
+                    placeholder="Şifrelenmiş metni girin"></textarea>
+
+                <label class="mb-1"><strong>Private Key:</strong></label>
+                <textarea id="decryptPrivateKey" class="form-control mb-2" rows="4"
+                    placeholder="Özel anahtarı buraya yapıştırın"></textarea>
+
+                <button class="btn btn-primary" onclick="decryptText()">Şifreyi çöz</button>
+
+                <p class="mt-3" id="decryptedOutput"></p>
+            </div>
+
+            <!-- SHA256 -->
+            <div id="sha256" class="section">
+                <h3>SHA256 Hash</h3>
+                <input type="text" id="shaInput" class="form-control mb-2" placeholder="Hash'lenecek metni girin" />
+                <button class="btn btn-primary" onclick="hashSHA256()">Hesapla</button>
+                <textarea id="shaOutput" class="form-control mt-2 shadow-none" rows="3" readonly></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        let crypt;
+
+        function stripKeyHeaders(key) {
+            return key.replace(/-----BEGIN [A-Z ]+-----/g, '')
+                .replace(/-----END [A-Z ]+-----/g, '')
+                .replace(/\n/g, '')
+                .trim();
+        }
+
+        function addKeyHeaders(key, type) {
+            return `-----BEGIN ${type} KEY-----\n${key}\n-----END ${type} KEY-----`;
+        }
+
+        function generateKeys() {
+            crypt = new JSEncrypt({ default_key_size: 2048 });
+            crypt.getKey();
+
+            const publicKey = stripKeyHeaders(crypt.getPublicKey());
+            const privateKey = stripKeyHeaders(crypt.getPrivateKey());
+
+            document.getElementById('publicKeyInput').value = publicKey;
+            document.getElementById('privateKeyInput').value = privateKey;
+
+            document.getElementById('encryptedText').value = '';
+            document.getElementById('decryptedOutput').textContent = '';
+            document.getElementById('shaOutput').value = '';
+            document.getElementById('encryptText').value = '';
+            document.getElementById('decryptText').value = '';
+            document.getElementById('shaInput').value = '';
+            document.getElementById('encryptPublicKey').value = '';
+            document.getElementById('decryptPrivateKey').value = '';
+        }
+
+        function encryptText() {
+            const text = document.getElementById('encryptText').value;
+            const pubKeyRaw = document.getElementById('encryptPublicKey').value.trim();
+
+            if (!text) {
+                alert('Lütfen şifrelenecek metni girin');
+                return;
+            }
+            if (!pubKeyRaw) {
+                alert('Lütfen bir genel anahtar girin.');
+                return;
+            }
+
+            const pubKey = addKeyHeaders(stripKeyHeaders(pubKeyRaw), "PUBLIC");
+            const encryptor = new JSEncrypt();
+            encryptor.setPublicKey(pubKey);
+
+            const encrypted = encryptor.encrypt(text);
+            document.getElementById('encryptedText').value = encrypted || 'Şifreleme işlemi başarısız';
+        }
+
+        function decryptText() {
+            const encrypted = document.getElementById('decryptText').value;
+            const privKeyRaw = document.getElementById('decryptPrivateKey').value.trim();
+
+            if (!encrypted) {
+                alert('Lütfen şifrelenmiş metni girin.');
+                return;
+            }
+            if (!privKeyRaw) {
+                alert('Lütfen özel anahtarı girin.');
+                return;
+            }
+
+            const privKey = addKeyHeaders(stripKeyHeaders(privKeyRaw), "PRIVATE");
+            const decryptor = new JSEncrypt();
+            decryptor.setPrivateKey(privKey);
+
+            const decrypted = decryptor.decrypt(encrypted);
+            document.getElementById('decryptedOutput').textContent = decrypted || 'Şifre çözme işlemi başarısız';
+        }
+
+        function hashSHA256() {
+            const input = document.getElementById('shaInput').value;
+            if (!input) {
+                alert("Lütfen hash'lenecek metni girin.");
+                return;
+            }
+            const hash = CryptoJS.SHA256(input).toString();
+            document.getElementById('shaOutput').value = hash;
+        }
+
+        function showSection(id) {
+            const sections = document.querySelectorAll('.section');
+            sections.forEach(sec => sec.classList.remove('active'));
+
+            const target = document.getElementById(id);
+            if (target) target.classList.add('active');
+        }
+
+        // Clipboard copy with "Copied" text
+        function copyToClipboard(elementId, buttonElement) {
+            const textArea = document.getElementById(elementId);
+            if (!textArea.value) return;
+
+            navigator.clipboard.writeText(textArea.value).then(() => {
+                const copiedText = buttonElement.querySelector('.copied-text');
+                copiedText.style.display = 'inline';
+                setTimeout(() => {
+                    copiedText.style.display = 'none';
+                }, 1500);
+            });
+        }
+    </script>
+</body>
+
+</html>
